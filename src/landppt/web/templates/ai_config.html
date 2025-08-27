@@ -124,6 +124,16 @@
                                    placeholder="{{ current_config.get('openai_base_url', 'https://api.openai.com/v1') }}">
                         </div>
                         <div class="form-group">
+                            <label>
+                                <input type="checkbox" name="openai_auto_add_v1" id="openai_auto_add_v1"
+                                       {% if current_config.get('openai_auto_add_v1', True) %}checked{% endif %}>
+                                自动添加 /v1 到 Base URL
+                            </label>
+                            <small style="color: #7f8c8d;">
+                                如果您的API服务不需要 /v1 路径（如某些代理服务），请取消勾选此选项
+                            </small>
+                        </div>
+                        <div class="form-group">
                             <label>默认模型:</label>
                             <div class="model-input-container">
                                 <select name="openai_model" id="openai_model_select" class="model-select" style="display: none;">
@@ -1936,10 +1946,15 @@ async function testProvider(providerName) {
         const inputs = card.querySelectorAll('input, select');
         inputs.forEach(input => {
             if (input.name && input.name !== 'default_provider') {
-                // 获取输入的值，不管是否为空
-                const value = input.value.trim();
-                if (value) {
-                    config[input.name] = value;
+                if (input.type === 'checkbox') {
+                    // 处理复选框
+                    config[input.name] = input.checked;
+                } else {
+                    // 获取输入的值，不管是否为空
+                    const value = input.value.trim();
+                    if (value) {
+                        config[input.name] = value;
+                    }
                 }
             }
         });
@@ -1979,6 +1994,7 @@ async function testOpenAIProvider(config) {
         let apiKey = config.openai_api_key;
         let baseUrl = config.openai_base_url;
         let model = config.openai_model;
+        let autoAddV1 = config.openai_auto_add_v1;
 
         // 如果前端没有填写API Key，尝试从后端获取
         if (!apiKey) {
@@ -2006,8 +2022,8 @@ async function testOpenAIProvider(config) {
             model = 'gpt-4o';
         }
 
-        // 确保 Base URL 格式正确
-        if (!baseUrl.endsWith('/v1')) {
+        // 根据用户设置决定是否添加 /v1
+        if (autoAddV1 !== false && !baseUrl.endsWith('/v1')) {
             baseUrl = baseUrl.endsWith('/') ? baseUrl + 'v1' : baseUrl + '/v1';
         }
 
@@ -2020,7 +2036,8 @@ async function testOpenAIProvider(config) {
             body: JSON.stringify({
                 base_url: baseUrl,
                 api_key: apiKey,
-                model: model
+                model: model,
+                auto_add_v1: autoAddV1
             })
         });
 
@@ -2614,11 +2631,16 @@ async function saveProviderConfig(provider) {
     const inputs = card.querySelectorAll('input, select');
 
     inputs.forEach(input => {
-        if (input.name && input.value) {
-            // 跳过 default_provider radio 按钮，因为它通过专门的 API 处理
-            if (input.name === 'default_provider') {
-                return;
-            }
+        // 跳过 default_provider radio 按钮，因为它通过专门的 API 处理
+        if (input.name === 'default_provider') {
+            return;
+        }
+
+        if (input.type === 'checkbox') {
+            // 处理复选框
+            config[input.name] = input.checked;
+        } else if (input.name && input.value) {
+            // 处理其他输入类型
             config[input.name] = input.value;
         }
     });
@@ -3218,8 +3240,12 @@ async function fetchAndShowModels() {
             baseUrl = 'https://api.openai.com/v1';
         }
 
-        // 确保Base URL以/v1结尾
-        if (!baseUrl.endsWith('/v1')) {
+        // 获取是否自动添加/v1的设置
+        const autoAddV1Checkbox = document.querySelector('input[name="openai_auto_add_v1"]');
+        const autoAddV1 = autoAddV1Checkbox ? autoAddV1Checkbox.checked : true;
+
+        // 根据用户设置决定是否添加 /v1
+        if (autoAddV1 && !baseUrl.endsWith('/v1')) {
             if (baseUrl.endsWith('/')) {
                 baseUrl += 'v1';
             } else {
@@ -3252,7 +3278,7 @@ async function fetchAndShowModels() {
         }
 
         // 获取模型列表
-        const models = await fetchOpenAIModels(baseUrl, apiKey);
+        const models = await fetchOpenAIModels(baseUrl, apiKey, autoAddV1);
 
         if (models && models.length > 0) {
             // 如果当前是输入模式，切换到选择模式
@@ -3320,7 +3346,7 @@ async function fetchAndShowModels() {
 }
 
 // 从OpenAI API获取模型列表（仅通过后端代理）
-async function fetchOpenAIModels(baseUrl, apiKey) {
+async function fetchOpenAIModels(baseUrl, apiKey, autoAddV1 = true) {
     try {
         // 只通过后端代理请求，避免CORS问题
         const response = await fetch('/api/ai/providers/openai/models', {
@@ -3330,7 +3356,8 @@ async function fetchOpenAIModels(baseUrl, apiKey) {
             },
             body: JSON.stringify({
                 base_url: baseUrl,
-                api_key: apiKey
+                api_key: apiKey,
+                auto_add_v1: autoAddV1
             })
         });
 

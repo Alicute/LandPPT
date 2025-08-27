@@ -105,5 +105,8 @@ build-backend = "hatchling.build"
 packages = ["src/landppt"]
 sources = ["src"]
 
+[tool.uv.sources]
+pyppeteer = { git = "https://github.com/pyppeteer/pyppeteer", rev = "dev" }
+
 
 

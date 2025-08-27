@@ -37,6 +37,7 @@ class ConfigService:
             "openai_api_key": {"type": "password", "category": "ai_providers"},
             "openai_base_url": {"type": "url", "category": "ai_providers", "default": "https://api.openai.com/v1"},
             "openai_model": {"type": "select", "category": "ai_providers", "default": "gpt-3.5-turbo"},
+            "openai_auto_add_v1": {"type": "boolean", "category": "ai_providers", "default": True},
             
             "anthropic_api_key": {"type": "password", "category": "ai_providers"},
             "anthropic_model": {"type": "select", "category": "ai_providers", "default": "claude-3-haiku-20240307"},

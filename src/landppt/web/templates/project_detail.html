@@ -354,6 +354,9 @@
             <button onclick="editOutline()" class="btn btn-primary" style="font-size: 0.9em;">
                 <i class="fas fa-edit"></i> 修改大纲
             </button>
+            <button onclick="editProjectStyle()" class="btn btn-warning" style="font-size: 0.9em;">
+                <i class="fas fa-palette"></i> 修改风格
+            </button>
             <button onclick="exportOutlineJSON()" class="btn btn-success" style="font-size: 0.9em;">
                 <i class="fas fa-download"></i> 导出JSON
             </button>
@@ -615,6 +618,109 @@ function toggleOutlineView() {
         detailView.style.display = 'block';
         toggleText.textContent = '简洁视图';
         isDetailView = true;
+    }
+}
+
+// 编辑项目风格
+function editProjectStyle() {
+    // 获取当前风格描述
+    const currentStyle = getCurrentProjectStyle();
+
+    // 创建模态框
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.cssText = `
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.5); display: flex; align-items: center;
+        justify-content: center; z-index: 10000;
+    `;
+
+    modal.innerHTML = `
+        <div style="background: white; border-radius: 12px; width: 90%; max-width: 600px; max-height: 80vh; display: flex; flex-direction: column; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+            <div style="padding: 20px; border-bottom: 1px solid #ecf0f1;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="color: #2c3e50; margin: 0;">🎨 编辑PPT风格</h3>
+                    <button onclick="this.closest('.modal').remove()" style="background: #e74c3c; color: white; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; font-size: 16px;">×</button>
+                </div>
+            </div>
+            <div style="padding: 20px; flex: 1; display: flex; flex-direction: column;">
+                <label style="display: block; margin-bottom: 8px; color: #2c3e50; font-weight: bold;">风格描述</label>
+                <textarea id="styleEditor" style="flex: 1; min-height: 120px; border: 2px solid #ecf0f1; border-radius: 8px; padding: 15px; font-size: 14px; line-height: 1.5; resize: vertical;" placeholder="请输入您希望的PPT风格描述，例如：简约现代风格，使用蓝色主题，卡片式布局...">${currentStyle}</textarea>
+                <p style="font-size: 12px; color: #7f8c8d; margin-top: 8px; margin-bottom: 0;">详细描述您期望的PPT风格，AI将根据您的描述生成相应的设计</p>
+                <div style="display: flex; gap: 8px; margin-top: 15px; justify-content: flex-end;">
+                    <button onclick="this.closest('.modal').remove()" class="btn btn-sm" style="background: #95a5a6; color: white;">取消</button>
+                    <button onclick="saveStyleChanges()" class="btn btn-sm btn-warning">保存风格</button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // 点击背景关闭模态框
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
+}
+
+// 获取当前项目风格
+function getCurrentProjectStyle() {
+    // 从项目数据中获取当前风格描述
+    if (window.projectData && window.projectData.confirmed_requirements) {
+        return window.projectData.confirmed_requirements.custom_style_prompt || '';
+    }
+    return '';
+}
+
+// 保存风格修改
+async function saveStyleChanges() {
+    const styleEditor = document.getElementById('styleEditor');
+    const newStyle = styleEditor.value.trim();
+
+    try {
+        const projectId = '{{ project.project_id }}';
+        const response = await fetch(`/projects/${projectId}/update-style`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `custom_style_prompt=${encodeURIComponent(newStyle)}`
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+            // 更新本地数据
+            if (window.projectData && window.projectData.confirmed_requirements) {
+                window.projectData.confirmed_requirements.custom_style_prompt = newStyle;
+            }
+
+            // 关闭模态框
+            document.querySelector('.modal').remove();
+
+            // 显示成功消息
+            alert('风格描述已更新！新的风格将在下次生成时生效。');
+        } else {
+            throw new Error(result.message || '保存失败');
+        }
+    } catch (error) {
+        console.error('Error saving style:', error);
+        alert('保存风格失败: ' + error.message);
+    }
+}
+
+// 加载项目数据
+async function loadProjectData() {
+    try {
+        const projectId = '{{ project.project_id }}';
+        const response = await fetch(`/api/projects/${projectId}`);
+        if (response.ok) {
+            window.projectData = await response.json();
+        }
+    } catch (error) {
+        console.error('Error loading project data:', error);
     }
 }
 
@@ -1019,6 +1125,11 @@ async function restoreVersion(version) {
         }
     }
 }
+
+// 页面加载时初始化
+document.addEventListener('DOMContentLoaded', function() {
+    loadProjectData();
+});
 
 </script>
 {% endblock %}

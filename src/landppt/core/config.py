@@ -27,6 +27,7 @@ class AIConfig(BaseSettings):
     openai_api_key: Optional[str] = Field(default=None, env="OPENAI_API_KEY")
     openai_base_url: str = Field(default="https://api.openai.com/v1", env="OPENAI_BASE_URL")
     openai_model: str = Field(default="gpt-3.5-turbo", env="OPENAI_MODEL")
+    openai_auto_add_v1: bool = Field(default=True, env="OPENAI_AUTO_ADD_V1")
     
     # Anthropic Configuration
     anthropic_api_key: Optional[str] = Field(default=None, env="ANTHROPIC_API_KEY")

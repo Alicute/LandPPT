@@ -22,3 +22,16 @@ temp/
 # uv cache and lock files
 .uv-cache/
 # Keep uv.lock for reproducible builds
+converter_config.json
+src/html_to_ppt_converter/slides/
+src/html_to_ppt_converter/output/
+
+.DS_Store
+.idea
+*__gen.go
+*__ignore.go
+*.swp
+*.swo
+~i_*
+ig_*
+zzzig_*

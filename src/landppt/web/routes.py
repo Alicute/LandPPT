@@ -277,14 +277,15 @@ async def get_openai_models(
         data = await request.json()
         base_url = data.get('base_url', 'https://api.openai.com/v1')
         api_key = data.get('api_key', '')
-        
-        logger.info(f"Frontend requested models from: {base_url}")
-        
+        auto_add_v1 = data.get('auto_add_v1', True)
+
+        logger.info(f"Frontend requested models from: {base_url}, auto_add_v1={auto_add_v1}")
+
         if not api_key:
             return {"success": False, "error": "API Key is required"}
-        
-        # Ensure base URL ends with /v1
-        if not base_url.endswith('/v1'):
+
+        # 根据用户设置决定是否添加 /v1
+        if auto_add_v1 and not base_url.endswith('/v1'):
             base_url = base_url.rstrip('/') + '/v1'
         
         models_url = f"{base_url}/models"
@@ -347,14 +348,15 @@ async def test_openai_provider_proxy(
         base_url = data.get('base_url', 'https://api.openai.com/v1')
         api_key = data.get('api_key', '')
         model = data.get('model', 'gpt-4o')
-        
-        logger.info(f"Frontend requested test with: base_url={base_url}, model={model}")
-        
+        auto_add_v1 = data.get('auto_add_v1', True)
+
+        logger.info(f"Frontend requested test with: base_url={base_url}, model={model}, auto_add_v1={auto_add_v1}")
+
         if not api_key:
             return {"success": False, "error": "API Key is required"}
-        
-        # Ensure base URL ends with /v1
-        if not base_url.endswith('/v1'):
+
+        # 根据用户设置决定是否添加 /v1
+        if auto_add_v1 and not base_url.endswith('/v1'):
             base_url = base_url.rstrip('/') + '/v1'
         
         chat_url = f"{base_url}/chat/completions"
@@ -1392,6 +1394,51 @@ async def web_project_todo_editor(
             "request": request,
             "error": str(e)
         })
+
+@router.post("/projects/{project_id}/update-style")
+async def update_project_style(
+    request: Request,
+    project_id: str,
+    custom_style_prompt: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    """更新项目的风格描述"""
+    try:
+        # 获取当前用户
+        user = get_current_user(request, db)
+        if not user:
+            raise HTTPException(status_code=401, detail="未登录")
+
+        # 获取项目
+        project = db.query(Project).filter(
+            Project.project_id == project_id,
+            Project.user_id == user.id
+        ).first()
+
+        if not project:
+            raise HTTPException(status_code=404, detail="项目不存在")
+
+        # 更新confirmed_requirements中的custom_style_prompt
+        if project.confirmed_requirements:
+            confirmed_requirements = project.confirmed_requirements.copy()
+        else:
+            confirmed_requirements = {}
+
+        confirmed_requirements['custom_style_prompt'] = custom_style_prompt
+        project.confirmed_requirements = confirmed_requirements
+
+        # 保存到数据库
+        db.commit()
+
+        logger.info(f"Updated style for project {project_id}: {custom_style_prompt[:100]}...")
+
+        return {"success": True, "message": "风格描述已更新"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating project style: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"更新风格失败: {str(e)}")
 
 @router.post("/projects/{project_id}/confirm-requirements")
 async def confirm_project_requirements(
@@ -4492,44 +4539,54 @@ def _enhance_complete_html_with_navigation(original_html: str, slide_number: int
         .slide-navigation {
             position: fixed;
             bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
+            left: 20px;
             display: flex;
             gap: 10px;
             z-index: 10000;
-            background: rgba(0,0,0,0.8);
             padding: 10px;
-            border-radius: 25px;
         }
         .nav-btn {
-            background: #007bff;
-            color: white;
-            border: none;
+            background: rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.2);
             padding: 10px 15px;
             border-radius: 5px;
             cursor: pointer;
             text-decoration: none;
             display: inline-block;
             font-size: 14px;
+            transition: all 0.3s ease;
         }
         .nav-btn:hover {
-            background: #0056b3;
+            background: rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.9);
+            border-color: rgba(255, 255, 255, 0.4);
         }
         .fullscreen-btn {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: #28a745;
-            color: white;
-            border: none;
-            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 10px 15px;
             border-radius: 5px;
             cursor: pointer;
             z-index: 10000;
-            font-size: 16px;
+            font-size: 14px;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.3s ease;
         }
         .fullscreen-btn:hover {
-            background: #1e7e34;
+            background: rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.9);
+            border-color: rgba(255, 255, 255, 0.4);
+        }
+
+        /* 打印/转PDF时隐藏导航按钮 */
+        @media print {
+            .slide-navigation,
+            .fullscreen-btn {
+                display: none !important;
+            }
         }
     </style>"""
 
@@ -4545,6 +4602,16 @@ def _enhance_complete_html_with_navigation(original_html: str, slide_number: int
             }}
         }}
 
+        // 切换导航显示/隐藏
+        function toggleNavigation() {{
+            const nav = document.querySelector('.slide-navigation');
+            if (nav.style.display === 'none') {{
+                nav.style.display = 'flex';
+            }} else {{
+                nav.style.display = 'none';
+            }}
+        }}
+
         // Keyboard navigation
         document.addEventListener('keydown', function(e) {{
             if (e.key === 'ArrowLeft' && {slide_number} > 1) {{
@@ -4553,6 +4620,10 @@ def _enhance_complete_html_with_navigation(original_html: str, slide_number: int
                 window.location.href = 'slide_{slide_number+1}.html';
             }} else if (e.key === 'Escape') {{
                 window.location.href = 'index.html';
+            }} else if (e.key === 'h' || e.key === 'H') {{
+                // 按 H 键切换导航显示/隐藏
+                e.preventDefault();
+                toggleNavigation();
             }}
         }});
     </script>"""
@@ -4562,11 +4633,8 @@ def _enhance_complete_html_with_navigation(original_html: str, slide_number: int
         <a href="index.html" class="nav-btn">🏠 返回目录</a>
         {"" if slide_number <= 1 else f'<a href="slide_{slide_number-1}.html" class="nav-btn">‹ 上一页</a>'}
         {"" if slide_number >= total_slides else f'<a href="slide_{slide_number+1}.html" class="nav-btn">下一页 ›</a>'}
-    </div>
-
-    <button class="fullscreen-btn" onclick="toggleFullscreen()" title="全屏显示">
-        📺
-    </button>"""
+        <button class="fullscreen-btn" onclick="toggleFullscreen()" title="全屏显示">📺 全屏</button>
+    </div>"""
 
     # Insert navigation CSS into head
     head_pattern = r'</head>'

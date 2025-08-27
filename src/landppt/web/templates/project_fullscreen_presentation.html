@@ -494,14 +494,16 @@
 
         <!-- 幻灯片缩略图 -->
         <div class="slide-thumbnails" id="slideThumbnails">
-            {% for slide in project.slides_data %}
-            <div class="thumbnail {% if loop.index == 1 %}active{% endif %}" 
-                 onclick="goToSlide({{ loop.index0 }})" 
-                 data-slide-index="{{ loop.index0 }}">
-                <iframe srcdoc="{{ slide.html_content | e }}" title="Slide {{ loop.index }}"></iframe>
-                <div class="thumbnail-number">{{ loop.index }}</div>
-            </div>
-            {% endfor %}
+            {% if project.slides_data %}
+                {% for slide in project.slides_data %}
+                <div class="thumbnail {% if loop.index == 1 %}active{% endif %}"
+                     onclick="goToSlide({{ loop.index0 }})"
+                     data-slide-index="{{ loop.index0 }}">
+                    <iframe srcdoc="{{ slide.html_content | e }}" title="Slide {{ loop.index }}"></iframe>
+                    <div class="thumbnail-number">{{ loop.index }}</div>
+                </div>
+                {% endfor %}
+            {% endif %}
         </div>
 
         <!-- 键盘快捷键提示 -->
@@ -544,7 +546,7 @@
         // 全局变量
         let currentSlideIndex = 0;
         let totalSlides = {{ slides_count }};
-        let slidesData = {{ project.slides_data | tojson }};
+        let slidesData = {{ project.slides_data | tojson | safe }};
         let autoPlayInterval = null;
         let isAutoPlaying = false;
         let thumbnailsVisible = false;
@@ -1030,6 +1032,9 @@
                 document.exitFullscreen();
             }
 
+            // 返回到项目编辑页面
+            const projectId = '{{ project.project_id }}';
+            window.location.href = `/projects/${projectId}/todo`;
         }
 
         // 键盘事件处理（防抖）

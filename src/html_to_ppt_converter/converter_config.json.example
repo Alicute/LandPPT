@@ -1,0 +1,35 @@
+{
+    "apryse_sdk": {
+        "license_key": "demo:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "note": "请在此处填入您的Apryse SDK许可证密钥"
+    },
+    "pdf_options": {
+        "width": "338.67mm",
+        "height": "190.5mm",
+        "print_background": true,
+        "landscape": false,
+        "margin": {
+            "top": "0mm",
+            "right": "0mm",
+            "bottom": "0mm",
+            "left": "0mm"
+        }
+    },
+    "browser_options": {
+        "headless": true,
+        "timeout": 30000,
+        "wait_for_images": true,
+        "wait_for_fonts": true,
+        "extra_wait_time": 2
+    },
+    "output": {
+        "pdf_quality": "high",
+        "merge_pdfs": true,
+        "cleanup_temp_files": true
+    },
+    "slides": {
+        "input_directory": "slides",
+        "output_directory": "output",
+        "index_file": "index.html"
+    }
+}

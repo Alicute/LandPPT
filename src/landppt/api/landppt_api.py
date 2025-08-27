@@ -146,13 +146,14 @@ async def test_ai_provider(provider_name: str, request: Request):
             base_url = body.get('base_url')
             api_key = body.get('api_key')
             model = body.get('model', 'gpt-4o')
-            
+            auto_add_v1 = body.get('auto_add_v1', True)
+
             if base_url and api_key:
                 # Use frontend provided config for OpenAI
-                logger.info(f"Testing OpenAI with frontend config: {base_url}")
-                
-                # Ensure base URL ends with /v1
-                if not base_url.endswith('/v1'):
+                logger.info(f"Testing OpenAI with frontend config: {base_url}, auto_add_v1={auto_add_v1}")
+
+                # 根据用户设置决定是否添加 /v1
+                if auto_add_v1 and not base_url.endswith('/v1'):
                     base_url = base_url.rstrip('/') + '/v1'
                 
                 chat_url = f"{base_url}/chat/completions"

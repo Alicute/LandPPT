@@ -559,6 +559,11 @@
             display: flex;
             gap: 15px;
             align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .btn-group-custom .btn {
+            flex-shrink: 0;
         }
 
         .btn {
@@ -801,6 +806,21 @@
                             <i class="fas fa-chart-line"></i>
                             项目进度跟踪与实时编辑
                         </div>
+                        <div id="project-progress-info" style="margin-top: 10px; font-size: 0.9em; color: #2c3e50; background: rgba(255,255,255,0.9); padding: 8px 12px; border-radius: 6px;">
+                            <div id="template-status" style="margin-bottom: 5px;">
+                                <i class="fas fa-palette"></i> 模板选择：<span id="template-status-text">检查中...</span>
+                            </div>
+                            <div id="style-status" style="margin-bottom: 5px;">
+                                <i class="fas fa-paint-brush"></i> 风格设置：<span id="style-status-text" style="cursor: pointer; text-decoration: underline;" onclick="showStyleDetail()">检查中...</span>
+                            </div>
+                            <div id="outline-status" style="margin-bottom: 5px;">
+                                <i class="fas fa-list"></i> 大纲生成：<span id="outline-status-text">检查中...</span>
+                                <button id="view-outline-btn" onclick="viewOutlinePage()" style="display: none; margin-left: 8px; padding: 2px 8px; font-size: 11px; background: #17a2b8; color: white; border: none; border-radius: 3px; cursor: pointer;">查看大纲</button>
+                            </div>
+                            <div id="ppt-status">
+                                <i class="fas fa-file-powerpoint"></i> PPT生成：<span id="ppt-status-text">等待中...</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="header-controls">
@@ -818,7 +838,12 @@
                 <div class="editor-toolbar">
                     <div class="toolbar-title">
                         <i class="fas fa-magic fa-2x"></i>
-                        <h4>PPT 智能生成器</h4>
+                        <div>
+                            <h4>PPT 智能生成器</h4>
+                            <div id="current-template-info" style="font-size: 0.85em; color: #7f8c8d; margin-top: 2px;">
+                                <i class="fas fa-palette"></i> 当前模板：<span id="template-name">加载中...</span>
+                            </div>
+                        </div>
                     </div>
                     <div class="btn-group-custom">
                         <button class="btn btn-primary" id="startBtn">
@@ -1031,6 +1056,9 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // 项目ID常量
+        const projectId = '{{ todo_board.task_id }}';
+
         let eventSource = null;
         let slidesData = [];
         let currentSlideIndex = 0;
@@ -1108,7 +1136,7 @@
 
             // 更新按钮状态
             startBtn.style.display = 'none';
-            stopBtn.style.display = 'inline-block';
+            stopBtn.style.display = 'block';
             statusDiv.style.display = 'block';
 
             // 断点续生：不清空已有数据，而是保留现有的幻灯片
@@ -1320,8 +1348,16 @@
             const stopBtn = document.getElementById('stopBtn');
 
             if (startBtn) {
-                startBtn.style.display = 'inline-block';
-                startBtn.innerHTML = '<i class="fas fa-play"></i> 开始生成';
+                startBtn.style.display = 'block';
+                startBtn.innerHTML = '<i class="fas fa-play"></i> 重新选择模板';
+                // 移除原有的事件监听器
+                startBtn.removeEventListener('click', startGeneration);
+                // 添加新的事件监听器，跳转到模板选择页面
+                startBtn.addEventListener('click', function() {
+                    if (confirm('确认重新选择模板？这将跳转到模板选择页面。')) {
+                        window.location.href = `/projects/${projectId}/template-selection`;
+                    }
+                });
             }
 
             if (stopBtn) {
@@ -1345,6 +1381,8 @@
                     updateStatus(data.message, 'progress');
                     const progress = (data.current / data.total) * 100;
                     progressBar.style.width = progress + '%';
+                    // 更新进度跟踪中的PPT状态
+                    document.getElementById('ppt-status-text').innerHTML = `🔄 进行中 (${data.current}/${data.total})`;
                     break;
                     
                 case 'slide':
@@ -1383,6 +1421,9 @@
                 case 'complete':
                     updateStatus(data.message, 'complete');
                     progressBar.style.width = '100%';
+                    // 更新进度跟踪中的PPT状态为完成
+                    const totalSlides = data.total || slidesData.length;
+                    document.getElementById('ppt-status-text').innerHTML = `✅ 已完成 (${totalSlides}/${totalSlides})`;
 
                     // 标记为手动停止，防止重连
                     isManualStop = true;
@@ -1543,9 +1584,9 @@
         }
 
         function checkAndShowEditorButton() {
-            // 如果已经有幻灯片生成，就显示编辑器按钮
+            // 只要有幻灯片数据就显示编辑器和幻灯片放映按钮
             if (slidesData.length > 0) {
-                showEditorButton();
+                showEditorAndSlideshowButtons();
             }
         }
 
@@ -1557,8 +1598,17 @@
 
             startBtn.style.display = 'none';
             stopBtn.style.display = 'none';
-            editorBtn.style.display = 'inline-block';
-            slideshowBtn.style.display = 'inline-block';
+            editorBtn.style.display = 'block';
+            slideshowBtn.style.display = 'block';
+        }
+
+        function showEditorAndSlideshowButtons() {
+            // 只显示编辑器和幻灯片放映按钮，不影响开始/停止按钮
+            const editorBtn = document.getElementById('editorBtn');
+            const slideshowBtn = document.getElementById('slideshowBtn');
+
+            editorBtn.style.display = 'block';
+            slideshowBtn.style.display = 'block';
         }
 
         function openFullEditor() {
@@ -1686,7 +1736,6 @@
 
         // Auto-start generation logic
         let generationStarted = false;
-        const projectId = '{{ todo_board.task_id }}';
         const generationKey = `ppt_generation_started_${projectId}`;
 
         // Check if PPT is already generated
@@ -1807,6 +1856,164 @@
             slidesData = [...projectSlidesData];
         }
 
+        // 获取并显示当前选择的模板信息
+        async function loadTemplateInfo() {
+            try {
+                const response = await fetch(`/api/projects/{{ todo_board.task_id }}/selected-template`);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.selected_template) {
+                        const templateName = data.selected_template.template_name || '默认模板';
+                        // 更新工具栏中的模板信息
+                        document.getElementById('template-name').textContent = templateName;
+                        // 更新进度跟踪中的模板状态
+                        document.getElementById('template-status-text').innerHTML = `✅ ${templateName}`;
+                    } else {
+                        document.getElementById('template-name').textContent = '未选择模板';
+                        document.getElementById('template-status-text').innerHTML = `❌ 未选择模板`;
+                    }
+                } else {
+                    document.getElementById('template-name').textContent = '获取失败';
+                    document.getElementById('template-status-text').innerHTML = `❌ 获取失败`;
+                }
+            } catch (error) {
+                console.error('获取模板信息失败:', error);
+                document.getElementById('template-name').textContent = '获取失败';
+                document.getElementById('template-status-text').innerHTML = `❌ 获取失败`;
+            }
+        }
+
+        // 获取并显示当前项目风格信息
+        async function loadStyleInfo() {
+            try {
+                const response = await fetch(`/api/projects/{{ todo_board.task_id }}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    const customStyle = data.confirmed_requirements?.custom_style_prompt;
+                    const pptStyle = data.confirmed_requirements?.ppt_style || 'general';
+
+                    // 存储风格信息供详情显示使用
+                    window.currentStyleInfo = {
+                        ppt_style: pptStyle,
+                        custom_style_prompt: customStyle || ''
+                    };
+
+                    // 显示风格状态
+                    if (customStyle && customStyle.trim()) {
+                        const shortStyle = customStyle.length > 20 ? customStyle.substring(0, 20) + '...' : customStyle;
+                        document.getElementById('style-status-text').innerHTML = `✅ ${shortStyle}`;
+                    } else {
+                        const styleNames = {
+                            'general': '通用风格',
+                            'conference': '会议风格',
+                            'custom': '自定义风格'
+                        };
+                        const styleName = styleNames[pptStyle] || '通用风格';
+                        document.getElementById('style-status-text').innerHTML = `✅ ${styleName}`;
+                    }
+                } else {
+                    document.getElementById('style-status-text').innerHTML = `❌ 获取失败`;
+                }
+            } catch (error) {
+                console.error('获取风格信息失败:', error);
+                document.getElementById('style-status-text').innerHTML = `❌ 获取失败`;
+            }
+        }
+
+        // 跳转到大纲页面
+        function viewOutlinePage() {
+            window.location.href = `/projects/${projectId}`;
+        }
+
+        // 显示风格详情
+        function showStyleDetail() {
+            if (!window.currentStyleInfo) {
+                alert('风格信息未加载');
+                return;
+            }
+
+            const { ppt_style, custom_style_prompt } = window.currentStyleInfo;
+
+            // 创建模态框
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.style.cssText = `
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                background: rgba(0,0,0,0.5); display: flex; align-items: center;
+                justify-content: center; z-index: 10000;
+            `;
+
+            const styleNames = {
+                'general': '通用风格',
+                'conference': '会议风格',
+                'custom': '自定义风格'
+            };
+            const styleName = styleNames[ppt_style] || '通用风格';
+
+            modal.innerHTML = `
+                <div style="background: white; border-radius: 12px; width: 90%; max-width: 500px; max-height: 80vh; display: flex; flex-direction: column; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+                    <div style="padding: 20px; border-bottom: 1px solid #ecf0f1;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <h3 style="color: #2c3e50; margin: 0;">🎨 当前PPT风格</h3>
+                            <button onclick="this.closest('.modal').remove()" style="background: #e74c3c; color: white; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; font-size: 16px;">×</button>
+                        </div>
+                    </div>
+                    <div style="padding: 20px;">
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; color: #2c3e50; font-weight: bold;">基础风格：</label>
+                            <div style="padding: 8px 12px; background: #f8f9fa; border-radius: 6px; color: #495057;">${styleName}</div>
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; color: #2c3e50; font-weight: bold;">风格描述：</label>
+                            <div style="padding: 12px; background: #f8f9fa; border-radius: 6px; color: #495057; min-height: 60px; line-height: 1.5;">
+                                ${custom_style_prompt || '无自定义风格描述'}
+                            </div>
+                        </div>
+                        <div style="text-align: center;">
+                            <button onclick="this.closest('.modal').remove()" class="btn btn-sm btn-secondary">关闭</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+
+            // 点击背景关闭模态框
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) {
+                    modal.remove();
+                }
+            });
+        }
+
+        // 更新项目进度状态
+        function updateProjectProgress() {
+            // 检查大纲状态
+            if (projectOutline && projectOutline.slides) {
+                const slideCount = projectOutline.slides.length;
+                document.getElementById('outline-status-text').innerHTML = `✅ 已完成 (${slideCount}页)`;
+                // 显示查看大纲按钮
+                document.getElementById('view-outline-btn').style.display = 'inline-block';
+            } else {
+                document.getElementById('outline-status-text').innerHTML = `❌ 未完成`;
+                // 隐藏查看大纲按钮
+                document.getElementById('view-outline-btn').style.display = 'none';
+            }
+
+            // 检查PPT生成状态
+            if (isPPTCompleted()) {
+                const completedCount = projectSlidesData ? projectSlidesData.length : 0;
+                const totalCount = projectOutline && projectOutline.slides ? projectOutline.slides.length : completedCount;
+                document.getElementById('ppt-status-text').innerHTML = `✅ 已完成 (${completedCount}/${totalCount})`;
+            } else if (projectSlidesData && projectSlidesData.length > 0) {
+                const completedCount = projectSlidesData.length;
+                const totalCount = projectOutline && projectOutline.slides ? projectOutline.slides.length : completedCount;
+                document.getElementById('ppt-status-text').innerHTML = `🔄 进行中 (${completedCount}/${totalCount})`;
+            } else {
+                document.getElementById('ppt-status-text').innerHTML = `⏳ 等待中`;
+            }
+        }
+
         // 实时检查PPT生成状态
         function checkPPTStatus() {
             // 如果PPT已经完成或者正在生成中，不需要检查
@@ -1828,9 +2035,19 @@
         }
 
         // Auto-start when page loads
-        document.addEventListener('DOMContentLoaded', checkAndStartGeneration);
+        document.addEventListener('DOMContentLoaded', function() {
+            checkAndStartGeneration();
+            loadTemplateInfo();
+            loadStyleInfo();
+            updateProjectProgress();
+        });
         // Also try on window load as fallback
-        window.addEventListener('load', checkAndStartGeneration);
+        window.addEventListener('load', function() {
+            checkAndStartGeneration();
+            loadTemplateInfo();
+            loadStyleInfo();
+            updateProjectProgress();
+        });
 
         // 定期检查PPT状态（每10秒检查一次）
         setInterval(checkPPTStatus, 10000);
