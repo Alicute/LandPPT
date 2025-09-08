@@ -20,8 +20,9 @@ from .api.image_api import router as image_router
 
 from .web import router as web_router
 from .auth import auth_router, create_auth_middleware
-from .database.database import init_db
+from .database.database import init_db, SessionLocal
 from .database.create_default_template import ensure_default_templates_exist_first_time
+from .auth.auth_service import init_default_admin
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -56,6 +57,13 @@ async def startup_event():
         logger.info("Initializing database...")
         await init_db()
         logger.info("Database initialized successfully")
+
+        # Initialize default admin user
+        db = SessionLocal()
+        try:
+            init_default_admin(db)
+        finally:
+            db.close()
 
         # Only import templates if database file didn't exist before (first time setup)
         if not db_exists:

@@ -2,6 +2,7 @@
 Authentication routes for LandPPT
 """
 
+from typing import Optional
 from fastapi import APIRouter, Request, Form, Depends, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -24,11 +25,11 @@ async def login_page(
     request: Request,
     error: str = None,
     success: str = None,
-    username: str = None
+    username: str = None,
+    user: User = Depends(get_current_user_optional)
 ):
     """Login page"""
     # Check if user is already logged in
-    user = get_current_user_optional(request)
     if user:
         return RedirectResponse(url="/dashboard", status_code=302)
     
@@ -231,12 +232,9 @@ async def api_current_user(
 
 @router.get("/api/auth/check")
 async def api_check_auth(
-    request: Request,
-    db: Session = Depends(get_db)
+    user: Optional[User] = Depends(get_current_user_optional)
 ):
     """Check authentication status"""
-    user = get_current_user_optional(request, db)
-    
     return {
         "authenticated": user is not None,
         "user": user.to_dict() if user else None

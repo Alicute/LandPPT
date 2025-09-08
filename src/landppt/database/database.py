@@ -63,13 +63,6 @@ async def init_db():
         # Create all tables
         await conn.run_sync(Base.metadata.create_all)
 
-    # Initialize default admin user
-    from ..auth.auth_service import init_default_admin
-    db = SessionLocal()
-    try:
-        init_default_admin(db)
-    finally:
-        db.close()
 
 
 async def close_db():

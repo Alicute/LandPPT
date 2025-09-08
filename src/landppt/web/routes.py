@@ -21,6 +21,7 @@ import subprocess
 import logging
 import time
 from typing import Optional, Dict, Any, List
+from sqlalchemy.orm import Session
 
 from ..api.models import PPTGenerationRequest, PPTProject, TodoBoard, FileOutlineGenerationRequest
 from ..services.enhanced_ppt_service import EnhancedPPTService
@@ -29,7 +30,8 @@ from ..services.pyppeteer_pdf_converter import get_pdf_converter
 from ..core.config import ai_config
 from ..ai import get_ai_provider, AIMessage, MessageRole
 from ..auth.middleware import get_current_user_required, get_current_user_optional
-from ..database.models import User
+from ..database.models import User, Project
+from ..database.database import get_db
 from ..utils.thread_pool import run_blocking_io, to_thread
 import re
 from bs4 import BeautifulSoup
@@ -1400,15 +1402,11 @@ async def update_project_style(
     request: Request,
     project_id: str,
     custom_style_prompt: str = Form(...),
+    user: User = Depends(get_current_user_required),
     db: Session = Depends(get_db)
 ):
     """更新项目的风格描述"""
     try:
-        # 获取当前用户
-        user = get_current_user(request, db)
-        if not user:
-            raise HTTPException(status_code=401, detail="未登录")
-
         # 获取项目
         project = db.query(Project).filter(
             Project.project_id == project_id,

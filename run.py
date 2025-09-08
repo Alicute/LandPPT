@@ -8,6 +8,7 @@ This script starts the LandPPT FastAPI application with proper configuration.
 import uvicorn
 import sys
 import os
+import traceback
 from dotenv import load_dotenv
 
 # Add src to Python path

@@ -202,7 +202,7 @@ class HTMLToPPTConverter:
         # 清理中间PDF文件（如果需要）
         if self.config.should_cleanup_temp_files:
             try:
-                os.unlink(pdf_path)
+                # os.unlink(pdf_path)
                 logger.info("中间PDF文件已清理")
             except Exception as e:
                 logger.warning(f"清理中间文件失败: {e}")
