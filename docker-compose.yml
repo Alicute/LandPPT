@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   landppt:
-    build: .
+    image: alicute/landppt_self:latest
     container_name: landppt
     ports:
       - "8000:8000"
