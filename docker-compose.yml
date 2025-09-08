@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   landppt:
-    image: bradleylzh/landppt:latest
+    build: .
     container_name: landppt
     ports:
       - "8000:8000"
@@ -10,7 +10,7 @@ services:
       # Configuration
       - ./.env:/app/.env
       # Data persistence
-      - landppt_data:/app/data
+      - ./data:/app/data
       - landppt_uploads:/app/uploads
       - landppt_reports:/app/research_reports
       - landppt_cache:/app/temp
@@ -28,8 +28,6 @@ services:
       - landppt_network
 
 volumes:
-  landppt_data:
-    driver: local
   landppt_uploads:
     driver: local
   landppt_reports:
